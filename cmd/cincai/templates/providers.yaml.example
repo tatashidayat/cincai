@@ -1,0 +1,175 @@
+# Cincai starter catalog — one live pattern per bundled adapter (chat + media).
+# Copy to config/providers.yaml. Pools / proxy / efforts: docs/routing.md
+#
+# Naming: docs/catalog-capabilities-modalities.md
+# Inject: docs/catalog-inject.md
+#
+# Model ids below are recent public SKUs for the default pack. Swap freely;
+# keep examples generic (no host-only proxy hosts, no product-private prefixes).
+#
+# Optional per provider:
+#   proxy: http://127.0.0.1:8080   # fixed HTTP(S) proxy for this provider only
+#   proxy: direct                 # ignore process HTTP(S)_PROXY for this provider
+# Optional per model (when upstream encodes effort in the model name):
+#   efforts: [low, medium, high]  # list only tiers your upstream accepts
+#   default_effort: medium
+#   pool model: example-model-medium
+
+providers:
+  # Chat passthrough (API key: deepseek-api) — DeepSeek V4 Flash
+  deepseek:
+    credential_profile: deepseek-api
+    # proxy: http://127.0.0.1:8080
+    capabilities:
+      chat:
+        protocol: openai-chat-completions
+        base_url: https://api.deepseek.com
+
+  # OpenAI ChatGPT subscription (OAuth: openai-oauth) — login first:
+  #   cincai credential login openai-oauth
+  # The Codex backend speaks the Responses API; the path override points the
+  # openai-responses passthrough at /responses (upstream layout has no /v1)
+  # and the inject map adds the account header the backend expects.
+  # openai:
+  #   credential_profile: openai-oauth
+  #   inject:
+  #     chatgpt-account-id: "${accountId}"
+  #   capabilities:
+  #     chat:
+  #       protocol: openai-responses
+  #       base_url: https://chatgpt.com/backend-api/codex
+  #       path: /responses
+
+  # xAI image + video (OAuth: xai-oauth) — Grok Imagine
+  xai:
+    credential_profile: xai-oauth
+    capabilities:
+      image_gen:
+        adapter: xai
+        base_url: https://api.x.ai/v1/images
+      video_gen:
+        protocol: openai-videos
+        base_url: https://api.x.ai/v1/videos
+
+  # ElevenLabs TTS (API key: elevenlabs-api)
+  elevenlabs:
+    credential_profile: elevenlabs-api
+    capabilities:
+      speech_gen:
+        adapter: elevenlabs
+        base_url: https://api.elevenlabs.io
+
+  # Mistral OCR (API key: mistral-api). Chat request → /v1/ocr (base_url has no /v1).
+  mistral:
+    credential_profile: mistral-api
+    capabilities:
+      ocr:
+        adapter: mistral
+        base_url: https://api.mistral.ai
+
+  # Gemini generateContent (adapter: vertex). Works with GCP Vertex AI or any
+  # host that exposes …/publishers/{publisher}/models/{model}:generateContent.
+  # Auth: API key or OAuth access token as Bearer (credential import / login).
+  # Replace PROJECT and LOCATION with your GCP values.
+  #
+  # vertex:
+  #   credential_profile: vertex-api
+  #   capabilities:
+  #     chat:
+  #       adapter: vertex
+  #       base_url: https://aiplatform.googleapis.com/v1/projects/PROJECT/locations/LOCATION
+
+models:
+  # --- chat ---------------------------------------------------------------
+  deepseek-v4-flash:
+    modalities:
+      chat:
+        wire: openai-chat-completions
+        provider_ref: deepseek
+      # OpenAI upstream served on Anthropic ingress (wire-translate).
+      anthropic_chat:
+        wire: anthropic-messages
+        provider_ref: deepseek
+
+  # ChatGPT subscription via the commented openai provider above. Public id is
+  # operator-chosen; the upstream id must be a model the Codex backend serves.
+  # gpt-5.2:
+  #   modalities:
+  #     chat:
+  #       wire: openai-responses
+  #       provider_ref: openai
+
+  # Effort tiers (optional). Public id stays lean; list only working tiers.
+  #
+  # example-model:
+  #   efforts: [low, medium, high]
+  #   default_effort: medium
+  #   modalities:
+  #     chat:
+  #       wire: openai-chat-completions
+  #       provider_ref: deepseek
+  #       model: example-model-medium
+  # Client: {"model":"example-model","reasoning_effort":"high",…}
+  # → upstream model becomes example-model-high.
+
+  # Composite model (optional). Same models: root; modality.models is an ordered
+  # list of public catalog ids. XOR with providers. GET /v1/models exposes
+  # "models": ["gpt-luna", "gemini-flash"]. See docs/routing.md.
+  #
+  # agent-cheap:
+  #   modalities:
+  #     chat:
+  #       wire: openai-chat-completions
+  #       strategy: failover
+  #       models:
+  #         - gpt-5.6-luna
+  #         - gemini-3.6-flash
+
+# Model groups (optional). Discovery only — not request model ids.
+# GET /v1/models includes { "id": "reviewers", "object": "model_group", "models": […] }.
+# groups:
+#   reviewers:
+#     description: Code / PR review
+#     models:
+#       - glm-5.2
+#       - gpt-5.6-luna
+#       - qwen3.8-max
+
+  # --- image / video ------------------------------------------------------
+  grok-imagine-image-quality:
+    modalities:
+      image_gen:
+        wire: openai-images-generations
+        provider_ref: xai
+
+  grok-imagine-video:
+    modalities:
+      video_gen:
+        wire: openai-videos
+        provider_ref: xai
+
+  # --- speech -------------------------------------------------------------
+  eleven_v3:
+    modalities:
+      speech_gen:
+        wire: openai-audio-speech
+        provider_ref: elevenlabs
+        model: eleven_v3
+
+  # --- document OCR -------------------------------------------------------
+  # Chat wire in; mistral adapter calls /v1/ocr and returns markdown as completion.
+  mistral-ocr-latest:
+    modalities:
+      ocr:
+        wire: openai-chat-completions
+        provider_ref: mistral
+
+  # --- Gemini via generateContent (vertex adapter) ------------------------
+  # Uncomment the vertex provider above, then:
+  #
+  # gemini-3.6-flash:
+  #   modalities:
+  #     chat:
+  #       wire: openai-chat-completions
+  #       provider_ref: vertex
+  #       model: google/gemini-3.6-flash

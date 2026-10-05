@@ -36,7 +36,7 @@ cincai init [--dir PATH] [--force]
 | `--dir` | `.` | Project directory to initialize |
 | `--force` | `false` | Overwrite existing config files |
 
-Creates `config/cincai.yaml`, `config/providers.yaml`, and `config/cincai.dev.env` (broker key). Run from the repo root or pass `--dir`.
+Creates `config/cincai.yaml`, `config/providers.yaml`, and `config/cincai.dev.env` (broker key). Works anywhere — a standalone binary falls back to the templates embedded in it; inside a repo checkout the tracked `config/*.example` files are used.
 
 Example:
 

@@ -73,6 +73,20 @@ func runInit(dir string, force bool) error {
 
 func copyExample(src, dst string, force bool) error {
 	if _, err := os.Stat(src); err != nil {
+		// Outside the repo checkout the tracked *.example files are absent;
+		// fall back to the copies embedded in the binary (same content, kept
+		// in lockstep by init_embedded_test.go).
+		base := filepath.Base(src)
+		if b, embErr := exampleTemplates.ReadFile("templates/" + base); embErr == nil {
+			if _, err := os.Stat(dst); err == nil && !force {
+				return nil
+			}
+			if err := os.WriteFile(dst, b, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (embedded template)\n", dst)
+			return nil
+		}
 		return fmt.Errorf("missing %s (run from project root or set --dir)", src)
 	}
 	if _, err := os.Stat(dst); err == nil && !force {

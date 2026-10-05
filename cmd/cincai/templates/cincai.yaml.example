@@ -1,0 +1,34 @@
+# Cincai gateway — copy to config/cincai.yaml (gitignored).
+#
+#   cincai init
+#   # or: cp config/cincai.yaml.example config/cincai.yaml && …
+#   set -a && source config/cincai.dev.env && set +a
+#   cincai credential import deepseek-api --api-key … --config config/cincai.yaml
+#   cincai serve --config config/cincai.yaml
+
+serve:
+  # Secure by default: loopback only. To reach the gateway from other hosts or
+  # containers, set a specific interface (e.g. "0.0.0.0:9420") and put TLS in front —
+  # gateway API keys travel in cleartext on this listener.
+  data_listen: "127.0.0.1:9420"
+  catalog: providers.yaml
+  # Optional: context window + pricing for GET /v1/models (incomplete is fine)
+  # model_meta: models.meta.yaml
+
+credential:
+  broker: ../data/.auth/broker.db
+  encryption:
+    key_env: CINCAI_BROKER_KEY
+
+adapters:
+  enable:
+    - passthrough
+    - wire-translate
+    - xai
+    - elevenlabs
+    - mistral
+    - vertex
+
+# OAuth profiles: cincai credential login <profile> (vendor modules — see cincai credential login --list)
+# API keys: cincai credential import <profile> --api-key …
+# Profile name must match providers.yaml credential_profile and broker.db — no credential_profiles yaml.
