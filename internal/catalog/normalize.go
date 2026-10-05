@@ -115,6 +115,9 @@ func normalizeCapabilitiesProvider(entry map[string]any) (map[string]any, bool) 
 		if base := fields.FirstNonEmpty(fields.String(capEntry["base_url"]), fields.String(capEntry["url"])); base != "" {
 			surf["base_url"] = base
 		}
+		if p := fields.String(capEntry["path"]); p != "" {
+			surf["path"] = p
+		}
 		surfaces[capabilitySurfaceKey(capName)] = surf
 	}
 	if len(surfaces) == 0 {
