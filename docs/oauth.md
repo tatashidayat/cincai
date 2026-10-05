@@ -11,6 +11,7 @@ Works out of the box on your laptop. On a **remote server** (SSH, VPS, headless 
 | Profile | Callback URL |
 |---------|----------------|
 | `xai-oauth` | `http://127.0.0.1:56121/callback` |
+| `openai-oauth` | `http://localhost:1455/auth/callback` |
 
 `cincai credential login` prints these hints automatically (stronger message when `SSH_CONNECTION` is set).
 
@@ -34,6 +35,43 @@ cincai credential login xai-oauth --config config/cincai.yaml
 3. Open the printed **auth URL in your laptop browser** (not on the server). After sign-in, the redirect hits `127.0.0.1:56121` on your laptop; SSH forwards it to the server where `cincai` is listening.
 
 Keep the `ssh -L` session open until you see `logged in id=…`.
+
+---
+
+## ChatGPT subscription (openai-oauth)
+
+`cincai credential login openai-oauth` signs in to your **ChatGPT subscription**
+(Plus/Pro/Team) with the same loopback OAuth flow the Codex CLI uses — issuer
+`auth.openai.com`, callback `http://localhost:1455/auth/callback`. The broker
+stores the access/refresh tokens plus the `chatgpt_account_id` claim, and
+`cincai serve` refreshes them automatically.
+
+To serve the subscription as an upstream, point a provider at the Codex backend
+(Responses API). The `path` override handles its non-`/v1` layout, and the
+`inject` map adds the account header the backend expects:
+
+```yaml
+providers:
+  openai:
+    credential_profile: openai-oauth
+    inject:
+      chatgpt-account-id: "${accountId}"
+    capabilities:
+      chat:
+        protocol: openai-responses
+        base_url: https://chatgpt.com/backend-api/codex
+        path: /responses
+
+models:
+  gpt-5.2:                # public id is operator-chosen; must be a model the
+    modalities:           # Codex backend serves
+      chat:
+        wire: openai-responses
+        provider_ref: openai
+```
+
+Clients then speak standard `POST /v1/responses` (or `/v1/chat/completions` —
+the wire-translate bridge handles the conversion) against the public id.
 
 ---
 

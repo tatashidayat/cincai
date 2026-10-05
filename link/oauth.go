@@ -2,5 +2,6 @@
 package link
 
 import (
+	_ "github.com/subosito/cincai/internal/oauth-providers/openai"
 	_ "github.com/subosito/cincai/internal/oauth-providers/xai"
 )

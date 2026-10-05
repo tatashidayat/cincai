@@ -25,6 +25,21 @@ providers:
         protocol: openai-chat-completions
         base_url: https://api.deepseek.com
 
+  # OpenAI ChatGPT subscription (OAuth: openai-oauth) — login first:
+  #   cincai credential login openai-oauth
+  # The Codex backend speaks the Responses API; the path override points the
+  # openai-responses passthrough at /responses (upstream layout has no /v1)
+  # and the inject map adds the account header the backend expects.
+  # openai:
+  #   credential_profile: openai-oauth
+  #   inject:
+  #     chatgpt-account-id: "${accountId}"
+  #   capabilities:
+  #     chat:
+  #       protocol: openai-responses
+  #       base_url: https://chatgpt.com/backend-api/codex
+  #       path: /responses
+
   # xAI image + video (OAuth: xai-oauth) — Grok Imagine
   xai:
     credential_profile: xai-oauth
@@ -75,6 +90,14 @@ models:
       anthropic_chat:
         wire: anthropic-messages
         provider_ref: deepseek
+
+  # ChatGPT subscription via the commented openai provider above. Public id is
+  # operator-chosen; the upstream id must be a model the Codex backend serves.
+  # gpt-5.2:
+  #   modalities:
+  #     chat:
+  #       wire: openai-responses
+  #       provider_ref: openai
 
   # Effort tiers (optional). Public id stays lean; list only working tiers.
   #
