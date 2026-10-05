@@ -32,9 +32,14 @@ const (
 
 // Surface is one upstream endpoint on a provider (passthrough protocol or translate adapter).
 type Surface struct {
-	Protocol      string `yaml:"protocol,omitempty"`
-	Adapter       string `yaml:"adapter,omitempty"`
-	BaseURL       string `yaml:"base_url"`
+	Protocol string `yaml:"protocol,omitempty"`
+	Adapter  string `yaml:"adapter,omitempty"`
+	BaseURL  string `yaml:"base_url"`
+	// Path overrides the upstream request path for passthrough protocols.
+	// Use it for hosts that deviate from the wire's default layout, e.g.
+	// the ChatGPT Codex backend (base_url …/backend-api/codex, path /responses).
+	// Empty = the protocol's default path (e.g. /v1/chat/completions).
+	Path          string `yaml:"path,omitempty"`
 	RequestPreset string `yaml:"request_preset,omitempty"`
 }
 
@@ -44,9 +49,9 @@ type Provider struct {
 	// Proxy is an optional HTTP(S) proxy URL for all upstream calls on this
 	// provider (e.g. "http://127.0.0.1:8080"). Empty = use process default
 	// (ProxyFromEnvironment). "direct" forces no proxy even if env is set.
-	Proxy        string             `yaml:"proxy,omitempty"`
-	Inject       map[string]string  `yaml:"inject,omitempty"`
-	InjectPreset string             `yaml:"inject_preset,omitempty"`
+	Proxy        string            `yaml:"proxy,omitempty"`
+	Inject       map[string]string `yaml:"inject,omitempty"`
+	InjectPreset string            `yaml:"inject_preset,omitempty"`
 	// AllowModels restricts which upstream model ids may leave this provider.
 	// Empty or omitted = allow all. Exact match on Target.UpstreamModel after effort rewrite.
 	AllowModels []string           `yaml:"allow_models,omitempty"`
@@ -211,11 +216,13 @@ func WireForPath(path string) (string, bool) {
 
 // Target is resolved upstream route.
 type Target struct {
-	Model             string
-	ProviderRef       string
-	Protocol          string
-	Adapter           string
-	BaseURL           string
+	Model       string
+	ProviderRef string
+	Protocol    string
+	Adapter     string
+	BaseURL     string
+	// Path is the per-surface upstream path override (Surface.Path); empty = protocol default.
+	Path              string
 	CredentialProfile string
 	UpstreamModel     string
 	// EffortModels is copied from the pool hop (effort → SKU). Empty = body-only / suffix.
@@ -425,6 +432,7 @@ func (c *Catalog) targetFromEntry(model string, entry PoolEntry, wire string) (T
 	return Target{
 		Model: model, ProviderRef: entry.ProviderRef,
 		Protocol: surf.Protocol, Adapter: adapter, BaseURL: surf.BaseURL,
+		Path:              surf.Path,
 		CredentialProfile: prov.CredentialProfile,
 		UpstreamModel:     upstreamModel,
 		EffortModels:      entry.Models,

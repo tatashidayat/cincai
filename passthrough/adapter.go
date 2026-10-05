@@ -43,7 +43,12 @@ type ChatHandler struct {
 func (h *ChatHandler) Protocol() string { return h.ProtocolName }
 
 func (h *ChatHandler) Forward(ctx context.Context, client *http.Client, t handler.Target, body io.Reader, hdr http.Header) (*http.Response, error) {
-	return forward(ctx, client, t, h.UpstreamPath(), body, hdr)
+	path := h.UpstreamPath()
+	// Catalog path override wins (e.g. ChatGPT Codex /responses — no /v1 prefix).
+	if p := strings.TrimSpace(t.Path); p != "" {
+		path = p
+	}
+	return forward(ctx, client, t, path, body, hdr)
 }
 
 // UpstreamPath returns the upstream HTTP path for this handler.
