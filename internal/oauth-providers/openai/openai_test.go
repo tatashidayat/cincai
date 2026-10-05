@@ -20,12 +20,16 @@ func makeIDToken(t *testing.T, claims map[string]any) string {
 
 func TestParseIDTokenClaims(t *testing.T) {
 	t.Run("extracts email and chatgpt account id", func(t *testing.T) {
-		token := makeIDToken(t, map[string]any{"email": "dev@example.com", "chatgpt_account_id": "acc-123"})
+		// auth.openai.com nests the account id under the namespaced claim.
+		token := makeIDToken(t, map[string]any{
+			"email":                       "dev@example.com",
+			"https://api.openai.com/auth": map[string]any{"chatgpt_account_id": "acc-123"},
+		})
 		claims, err := parseIDTokenClaims(token)
 		if err != nil {
 			t.Fatalf("parseIDTokenClaims: %v", err)
 		}
-		if claims.Email != "dev@example.com" || claims.ChatGPTAccountID != "acc-123" {
+		if claims.Email != "dev@example.com" || claims.accountID() != "acc-123" {
 			t.Fatalf("claims = %+v, want email dev@example.com + acc-123", claims)
 		}
 	})
@@ -35,7 +39,7 @@ func TestParseIDTokenClaims(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parseIDTokenClaims(\"\"): %v", err)
 		}
-		if claims.Email != "" || claims.ChatGPTAccountID != "" {
+		if claims.Email != "" || claims.accountID() != "" {
 			t.Fatalf("claims = %+v, want zero values", claims)
 		}
 	})
@@ -62,7 +66,10 @@ func TestParseIDTokenClaims(t *testing.T) {
 func TestParseTokenResponse(t *testing.T) {
 	t.Run("full response with id_token claims", func(t *testing.T) {
 		raw := []byte(`{"access_token":"at","refresh_token":"rt","expires_in":3600,"id_token":"` +
-			makeIDToken(t, map[string]any{"email": "dev@example.com", "chatgpt_account_id": "acc-123"}) + `"}`)
+			makeIDToken(t, map[string]any{
+				"email":                       "dev@example.com",
+				"https://api.openai.com/auth": map[string]any{"chatgpt_account_id": "acc-123"},
+			}) + `"}`)
 		got, err := parseTokenResponse(raw, "", "", "")
 		if err != nil {
 			t.Fatalf("parseTokenResponse: %v", err)

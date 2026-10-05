@@ -234,8 +234,8 @@ func parseTokenResponse(raw []byte, fallbackRefresh, fallbackEmail, fallbackAcco
 		if claims.Email != "" {
 			email = claims.Email
 		}
-		if claims.ChatGPTAccountID != "" {
-			accountID = claims.ChatGPTAccountID
+		if claims.accountID() != "" {
+			accountID = claims.accountID()
 		}
 	}
 	return wire.OAuthPayload{
@@ -252,10 +252,17 @@ func parseTokenResponse(raw []byte, fallbackRefresh, fallbackEmail, fallbackAcco
 // Verification is the issuer's job over the token endpoint response; these
 // claims only label the stored credential (email) and route the ChatGPT
 // backend workspace header (chatgpt_account_id).
+//
+// auth.openai.com nests the account id under the namespaced claim object
+// ("https://api.openai.com/auth" → chatgpt_account_id); email stays top-level.
 type idTokenClaims struct {
-	Email            string `json:"email"`
-	ChatGPTAccountID string `json:"chatgpt_account_id"`
+	Email string `json:"email"`
+	Auth  struct {
+		ChatGPTAccountID string `json:"chatgpt_account_id"`
+	} `json:"https://api.openai.com/auth"`
 }
+
+func (c idTokenClaims) accountID() string { return c.Auth.ChatGPTAccountID }
 
 // parseIDTokenClaims decodes the id_token JWT payload without verifying the
 // signature. An empty token is not an error — callers fall back to the
