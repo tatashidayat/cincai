@@ -27,13 +27,17 @@ providers:
 
   # OpenAI ChatGPT subscription (OAuth: openai-oauth) — login first:
   #   cincai credential login openai-oauth
-  # The Codex backend speaks the Responses API; the path override points the
-  # openai-responses passthrough at /responses (upstream layout has no /v1)
-  # and the inject map adds the account header the backend expects.
+  # The Codex backend speaks the Responses API only, streaming-only:
+  #   path /responses (no /v1), input as a list, store:false, stream:true.
+  # inject replaces the default Bearer, so re-add Authorization; the account +
+  # originator/UA headers keep Cloudflare (and the backend) happy.
   # openai:
   #   credential_profile: openai-oauth
   #   inject:
+  #     Authorization: "Bearer ${access}"
   #     chatgpt-account-id: "${accountId}"
+  #     originator: "codex_cli_rs"
+  #     user-agent: "codex_cli_rs/0.55.0 cincai"
   #   capabilities:
   #     chat:
   #       protocol: openai-responses
@@ -91,9 +95,16 @@ models:
         wire: anthropic-messages
         provider_ref: deepseek
 
-  # ChatGPT subscription via the commented openai provider above. Public id is
-  # operator-chosen; the upstream id must be a model the Codex backend serves.
-  # gpt-5.2:
+  # ChatGPT subscription via the commented openai provider above. Slugs the
+  # Codex backend serves for ChatGPT accounts (gpt-5.4-mini is NOT one of them).
+  # Client requests need input as a list, store:false, stream:true.
+  # gpt-5.6-luna:
+  #   modalities:
+  #     chat:
+  #       wire: openai-responses
+  #       provider_ref: openai
+  #
+  # gpt-5.6-sol:
   #   modalities:
   #     chat:
   #       wire: openai-responses

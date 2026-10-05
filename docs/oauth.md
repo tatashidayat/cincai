@@ -47,15 +47,29 @@ stores the access/refresh tokens plus the `chatgpt_account_id` claim, and
 `cincai serve` refreshes them automatically.
 
 To serve the subscription as an upstream, point a provider at the Codex backend
-(Responses API). The `path` override handles its non-`/v1` layout, and the
-`inject` map adds the account header the backend expects:
+(Responses API, **streaming-only**). Three things the backend and its
+Cloudflare front expect, and two wire facts that shape the catalog:
+
+- `path: /responses` — the upstream layout has no `/v1` prefix.
+- The provider `inject:` map replaces the default Bearer header, so re-add
+  `Authorization: "Bearer ${access}"` alongside the account header.
+- `originator` + a codex-shaped `user-agent` keep the backend/edge from
+  challenging the request.
+- Requests must use `input` as a **list**, `"store": false`, and
+  `"stream": true` (non-streaming requests are rejected).
+- Model slugs: ChatGPT accounts serve the current codex family (e.g.
+  `gpt-5.6-luna`, `gpt-5.6-sol`); API-only slugs like `gpt-5.4-mini` are
+  rejected.
 
 ```yaml
 providers:
   openai:
     credential_profile: openai-oauth
     inject:
+      Authorization: "Bearer ${access}"
       chatgpt-account-id: "${accountId}"
+      originator: "codex_cli_rs"
+      user-agent: "codex_cli_rs/0.55.0 cincai"
     capabilities:
       chat:
         protocol: openai-responses
@@ -63,15 +77,15 @@ providers:
         path: /responses
 
 models:
-  gpt-5.2:                # public id is operator-chosen; must be a model the
-    modalities:           # Codex backend serves
+  gpt-5.6-luna:           # public id is operator-chosen
+    modalities:
       chat:
         wire: openai-responses
         provider_ref: openai
 ```
 
-Clients then speak standard `POST /v1/responses` (or `/v1/chat/completions` —
-the wire-translate bridge handles the conversion) against the public id.
+Clients then speak standard `POST /v1/responses` with `stream:true` (or
+`/v1/chat/completions` — the wire-translate bridge handles the conversion).
 
 ---
 
